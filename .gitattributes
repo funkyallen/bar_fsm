@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.py text eol=lf
+# Preserve the exact bytes of the archived requirements and aggregate tables.
+runtime/requirements.txt -text
+results/*.csv -text

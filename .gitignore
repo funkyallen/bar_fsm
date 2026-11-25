@@ -1,0 +1,28 @@
+# Local Python environments and generated files
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+build/
+dist/
+
+# Credentials and local replay inputs and outputs
+.env
+.env.*
+*.pem
+*.key
+*.sqlite*
+*.db
+*.db-*
+*.jsonl
+*.zip
+/live/
+/artifacts/
+/source_data/
+/BAR-FSM_v5.2_IEEE_Access_20261125/
+/downloads/
+/outputs/
+/reproduced/
+/runs/

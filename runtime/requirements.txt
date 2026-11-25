@@ -1,0 +1,5 @@
+openai==3.57.0
+pydantic==2.14.4
+PyYAML==6.0.3
+python-dotenv==1.2.4
+matplotlib==3.11.2

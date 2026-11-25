@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite this release and the associated paper."
+title: "BAR-FSM research code for Auditing Resource-Induced Loss of Goal Reachability in Tool-Using Agents"
+type: software
+authors:
+  - family-names: Rui
+    given-names: Jianwen
+  - family-names: Liu
+    given-names: Shipei
+version: 5.2.0
+date-released: 2026-11-25
+license: MIT
