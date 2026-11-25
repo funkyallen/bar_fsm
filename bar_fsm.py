@@ -13,8 +13,9 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parent
-ARCHIVE_ID = "BAR-FSM_v5.2_IEEE_Access_20261125"
-ARCHIVE_SHA256 = "c37ed473c6a363904486dcb431d9fcd3ec9ff56ddbb13547abc3ef6c840e4703"
+ARCHIVE_NAME = "BAR-FSM-reproduction-v5.2.zip"
+ARCHIVE_SHA256 = "f552625db9ae9aa739e0a31e9271a3e55a3b8574cb1b9e049d1f708461d33bd2"
+LEGACY_ARCHIVE_SHA256 = "c37ed473c6a363904486dcb431d9fcd3ec9ff56ddbb13547abc3ef6c840e4703"
 REFERENCE_OUTPUTS = (
     "table1.csv", "family_effects.csv", "accounting_contract_audit.json", "trace_forensics.json",
     "frozen_hold_audit.json", "control_versions_v50.json", "oracle_v50.json", "protocol_v50.json",
@@ -78,8 +79,8 @@ def checksum(path):
 
 def reproduce(archive, output):
     # Verify the archive before extraction, including the upstream source it contains.
-    if checksum(archive) != ARCHIVE_SHA256:
-        raise ValueError(f"Use the frozen {ARCHIVE_ID}.zip. The supplied archive has a different SHA-256.")
+    if checksum(archive) not in (ARCHIVE_SHA256, LEGACY_ARCHIVE_SHA256):
+        raise ValueError(f"Use the frozen {ARCHIVE_NAME}. The supplied archive has a different SHA-256.")
     if output.exists() and (not output.is_dir() or any(output.iterdir())):
         raise ValueError("Use an empty directory for the reproduced outputs.")
 
@@ -87,7 +88,8 @@ def reproduce(archive, output):
     with TemporaryDirectory(prefix="bar-fsm-reproduction-") as temporary:
         with ZipFile(archive) as zipped:
             zipped.extractall(temporary)
-        inputs = Path(temporary) / ARCHIVE_ID
+        # Both verified archives contain a single top-level directory.
+        inputs = next(Path(temporary).iterdir())
         # Pair the archived data with the source from this checkout.
         for relative, digest in provenance.items():
             source = ROOT / relative

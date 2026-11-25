@@ -18,10 +18,10 @@ Both commands generate their fixtures locally and run without API credentials. T
 
 ## Reproduce the paper
 
-The full replay requires the companion `BAR-FSM_v5.2_IEEE_Access_20261125.zip` from the authors or the paper's supplementary materials. This code repository contains aggregate table values in [results](results), while the companion archive supplies the raw model replies, simulator states, request ledgers, and pinned Retail evaluator.
+The full replay uses the companion data archive `BAR-FSM-reproduction-v5.2.zip`. Obtain it from the authors and save it in the `downloads/` directory. The archive contains the raw model replies, simulator states, request ledgers, and pinned Retail evaluator. The repository provides aggregate table values in [results](results).
 
 ```sh
-python -B bar_fsm.py reproduce --archive /path/to/BAR-FSM_v5.2_IEEE_Access_20261125.zip --out outputs/paper
+python -B bar_fsm.py reproduce --archive downloads/BAR-FSM-reproduction-v5.2.zip --out outputs/paper
 ```
 
 The command verifies the archive and release source hashes, replays the study offline, and compares 14 regenerated tables and audit outputs with the archived references. Start with an empty output directory. Figure rendering may vary with platform and fonts.
