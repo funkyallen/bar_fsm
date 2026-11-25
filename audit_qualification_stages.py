@@ -14,7 +14,6 @@ def audit(report):
     categories = ("new_loss", "preserved")
     breakdown = {key: Counter() for key in categories}
     for row in rows:
-        # Only a legal write from a reachable state can cause a new loss.
         if not row["truth_before"] or row["truth_after"] is None:
             continue
         cohort = "preserved" if row["truth_after"] else "new_loss"

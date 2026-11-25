@@ -1,0 +1,5 @@
+policy,locally_cleared,preserving,new_loss,already_unreachable,restored_by_one_restart
+M0,223,215,4,4,4
+M1,227,221,6,0,6
+M2,236,231,5,0,5
+total,686,667,15,4,15

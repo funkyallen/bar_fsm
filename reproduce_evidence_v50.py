@@ -45,12 +45,10 @@ def formal_evidence(audits):
         if r["new_loss_under_oracle"] and r["forked_allowance_after_dispatch"] == 0
     }
     design = {r["task"]["task_id"]: r["task"]["domain"] for r in source("formal_fixtures/cases.json")}
-
     def bucket(row):
         return design[row["task"]], row["provider"], row["quota_group"], row["arm"]
 
     terminal_groups, candidate_groups = {}, {}
-    # Interrupted attempts can contribute candidates, but each slot has one scored episode.
     older = [r for r in original if r["terminal"] is None and r["trace"]]
     observed = [(r, False) for r in rows] + [(r, True) for r in older]
     for row, interrupted in observed:
@@ -65,21 +63,17 @@ def formal_evidence(audits):
                     and e.get("oracle", {}).get("before") is True and e["oracle"].get("after") is not None]
         losses = [e for e in eligible if e["oracle"]["new_loss"]]
         held = [e for e in losses if e["event"] == "future_block" and (row["slot"], e["step"]) in fork_slots]
-        cohort = "interrupted_attempt" if interrupted else "scored_episode"
-        candidate_counts = candidate_groups.setdefault((*group, cohort), Counter())
-        candidate_counts.update({"proposals": len(candidates), "locally_cleared": sum(
+        c = candidate_groups.setdefault((*group, "interrupted_attempt" if interrupted else "scored_episode"), Counter())
+        c.update({"proposals": len(candidates), "locally_cleared": sum(
             e.get("assessment", {}).get("local") == "pass" for e in candidates),
             "eligible_known_pre_and_post": len(eligible), "new_losses": len(losses),
             "actual_losses": sum(e["event"] == "dispatch" for e in losses), "replay_confirmed_holds": len(held)})
-        if interrupted:
-            continue
-        episode_counts = terminal_groups.setdefault(group, Counter())
-        episode_counts.update({
-            "scored": 1, "reached_candidate": bool(candidates), "reached_eligible_candidate": bool(eligible),
-            "any_harmful_candidate": bool(losses), "any_actual_loss": any(e["event"] == "dispatch" for e in losses),
-            "any_replay_confirmed_hold": bool(held), "completed": row["terminal"],
-            "completed_after_replay_confirmed_hold": bool(held) and row["terminal"],
-        })
+        if not interrupted:
+            t = terminal_groups.setdefault(group, Counter())
+            t.update({"scored": 1, "reached_candidate": bool(candidates), "reached_eligible_candidate": bool(eligible),
+                      "any_harmful_candidate": bool(losses), "any_actual_loss": any(e["event"] == "dispatch" for e in losses),
+                      "any_replay_confirmed_hold": bool(held), "completed": row["terminal"],
+                      "completed_after_replay_confirmed_hold": bool(held) and row["terminal"]})
 
     index = ("domain", "provider", "quota", "arm")
     live = ROOT / "live"

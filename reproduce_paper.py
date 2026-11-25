@@ -108,13 +108,13 @@ def export_tables(output):
     pooled = load(output / "formal_completion_audit.json")["pooled"]
     points = load(output / "editorial_checks.json")["formal_cost_points"]["arms"]
     with (output / "table1.csv").open("w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, lineterminator="\n")
         writer.writerow(["policy", "completed", "assigned", "total_charge_cny", "cny_per_completed_episode"])
         for arm in ARM_IDS:
             row = points[arm]
             writer.writerow([arm, row["successes"], row["assigned"], row["cost_cny"], row["cny_per_success"]])
     with (output / "family_effects.csv").open("w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, lineterminator="\n")
         writer.writerow(["family", "matched_groups", *ARM_IDS, *(f"{a}_minus_{b}_pp" for a, b in CONTRASTS)])
         for family, counts in pooled["family_terminal_counts"].items():
             n = sum(counts["M0"].values())
@@ -125,6 +125,10 @@ def export_tables(output):
             writer.writerow([family, n, *(successes[x] for x in ARM_IDS), *(f"{d:+.2f}" for d in differences)])
 
 
+def normalized_bytes(path):
+    return path.read_bytes().replace(b"\r\n", b"\n")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, required=True)
@@ -132,40 +136,65 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     environment = {k: v for k, v in os.environ.items()
                    if not any(key in k.upper() for key in ("API_KEY", "TOKEN", "SECRET", "PYTHONPATH"))}
-
-    def run(script, *args):
-        subprocess.run([sys.executable, "-B", "-E", "-c", OFFLINE_LAUNCHER, script, *map(str, args)],
-                       cwd=ROOT, env=environment, check=True)
-
-    # Later audits read the replay files produced by the first three scripts.
     for script in ("reproduce_revision.py", "reproduce_update.py", "reproduce_final.py",
                    "audit_trace_forensics.py", "reproduce_frozen_hold.py", "audit_control_versions_v50.py",
                    "audit_oracle_v50.py", "audit_protocol_v50.py"):
-        run(script, "--out", out)
-    for name in ("trace_forensics.json", "frozen_hold_audit.json"):
-        if load(out / name) != load(ROOT / "source_data" / name):
-            raise ValueError(f"Reproduced audit differs from release: {name}.")
-    run("reproduce_evidence_v50.py", "--audit-dir", out, "--out", out)
+        subprocess.run([sys.executable, "-B", "-E", "-c", OFFLINE_LAUNCHER,
+                        script, "--out", str(out)], cwd=ROOT, env=environment, check=True)
+    if load(out / "trace_forensics.json") != load(ROOT / "source_data/trace_forensics.json"):
+        raise ValueError("Reproduced trace forensics differ from the released audit.")
+    if load(out / "frozen_hold_audit.json") != load(ROOT / "source_data/frozen_hold_audit.json"):
+        raise ValueError("Reproduced first-hold comparison differs from the released audit.")
+    subprocess.run([sys.executable, "-B", "-E", "-c", OFFLINE_LAUNCHER,
+                    "reproduce_evidence_v50.py", "--audit-dir", str(out), "--out", str(out)],
+                   cwd=ROOT, env=environment, check=True)
     for name in ("control_versions_v50.json", "oracle_v50.json", "protocol_v50.json", "request_call_map_v50.jsonl",
                  "evidence_v50.json", "formal_episode_exposure.csv", "formal_candidate_exposure.csv",
                  "natural_accounting_exposure.csv"):
-        if (out / name).read_bytes() != (ROOT / "source_data" / name).read_bytes():
+        if normalized_bytes(out / name) != normalized_bytes(ROOT / "source_data" / name):
             raise ValueError(f"Recomputed study evidence differs from release: {name}.")
     export_tables(out)
     stages_file = out / "qualification_stages_v51.json"
-    run("audit_qualification_stages.py", "--qualification", out / "voidability_720.json", "--out", stages_file)
-    if stages_file.read_bytes() != (ROOT / "source_data" / stages_file.name).read_bytes():
+    subprocess.run([sys.executable, "-B", "-E", "-c", OFFLINE_LAUNCHER,
+                    "audit_qualification_stages.py", "--qualification", str(out / "voidability_720.json"),
+                    "--out", str(stages_file)], cwd=ROOT, env=environment, check=True)
+    if normalized_bytes(stages_file) != normalized_bytes(ROOT / "source_data" / stages_file.name):
         raise ValueError("Reproduced qualification guard-stage counts differ from the release.")
     report = json.dumps(audit_accounting_contract(), indent=2) + "\n"
-    (out / "accounting_contract_audit.json").write_text(report, encoding="utf-8")
+    (out / "accounting_contract_audit.json").write_text(report, encoding="utf-8", newline="\n")
+    experimental = out / "experimental_results.json"
+    subprocess.run([sys.executable, "-B", "-E", "-c", OFFLINE_LAUNCHER,
+                    "audit_experimental_results.py", "--audit-dir", str(out), "--out", str(experimental)],
+                   cwd=ROOT, env=environment, check=True)
+    if normalized_bytes(experimental) != normalized_bytes(ROOT / "source_data/experimental_results.json"):
+        raise ValueError("Recomputed experimental tables differ from the release.")
     figures = out / "figures"
-    run("plot_manuscript_figures.py", "--audit-dir", out, "--out", figures)
+    subprocess.run([sys.executable, "-B", "-E", "-c", OFFLINE_LAUNCHER,
+                    "plot_manuscript_figures.py", "--audit-dir", str(out), "--out", str(figures)],
+                   cwd=ROOT, env=environment, check=True)
     if load(figures / "figure_data.json") != load(ROOT / "figures/figure_data.json"):
         raise ValueError("Reproduced figure data differ from the released source data.")
-    run("plot_candidate_chain_v50.py", "--audit-dir", out, "--out", figures)
+    subprocess.run([sys.executable, "-B", "-E", "-c", OFFLINE_LAUNCHER,
+                    "plot_candidate_chain_v50.py", "--audit-dir", str(out), "--out", str(figures)],
+                   cwd=ROOT, env=environment, check=True)
     if load(figures / "candidate_chain_data.json") != load(ROOT / "figures/candidate_chain_data.json"):
         raise ValueError("Reproduced candidate-chain data differ from the released source data.")
-    print("Rebuilt the qualification, runtime, and scoring audits, version and oracle checks, exposure tables, and figures.")
+    subprocess.run([sys.executable, "-B", "-E", "-c", OFFLINE_LAUNCHER,
+                    "plot_method_overview.py", "--out", str(figures)],
+                   cwd=ROOT, env=environment, check=True)
+    subprocess.run([sys.executable, "-B", "-E", "-c", OFFLINE_LAUNCHER,
+                    "audit_resource_margins.py", "--archive", str(ROOT), "--out", str(out), "--figures", str(figures)],
+                   cwd=ROOT, env=environment, check=True)
+    for name in ("accounting_resource_margins.csv", "resource_margin_audit.json"):
+        if normalized_bytes(out / name) != normalized_bytes(ROOT / "source_data" / name):
+            raise ValueError(f"Recomputed margin audit differs from release: {name}.")
+    submission_file = out / "submission_evidence.json"
+    subprocess.run([sys.executable, "-B", "-E", "-c", OFFLINE_LAUNCHER,
+                    "audit_submission_evidence.py", "--archive", str(ROOT), "--out", str(submission_file)],
+                   cwd=ROOT, env=environment, check=True)
+    if load(submission_file) != load(ROOT / "source_data/submission_evidence.json"):
+        raise ValueError("Recomputed submission evidence differs from the release.")
+    print("Rebuilt the qualification, runtime, scoring, 686-candidate, restoration, resource-margin, and capacity-comparator audits, exposure tables, and figures.")
 
 
 if __name__ == "__main__":

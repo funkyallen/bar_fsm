@@ -1,0 +1,7 @@
+method,losses_held,losses_total,preserving_held,preserving_total
+Local checks (B0),0,15,0,37
+Invoice count (B1),5,15,0,37
+Aggregate capacity (L_agg),10,15,0,37
+Max of count and aggregate (L_max),11,15,0,37
+Largest posting (B2),15,15,21,37
+Per-invoice capacity certificate (L_acc),15,15,0,37

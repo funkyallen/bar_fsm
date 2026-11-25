@@ -18,13 +18,13 @@ Both commands generate their fixtures locally and run without API credentials. T
 
 ## Reproduce the paper
 
-The full replay uses the companion data archive `BAR-FSM-reproduction-v5.2.zip`. Obtain it from the authors and save it in the `downloads/` directory. The archive contains the raw model replies, simulator states, request ledgers, and pinned Retail evaluator. The repository provides aggregate table values in [results](results).
+The full replay uses the companion data archive `BAR-FSM-reproduction-v5.7.zip`. Download it from [the v5.7.0 release](https://github.com/funkyallen/bar_fsm/releases/tag/v5.7.0) and save it in the `downloads/` directory. The archive contains the raw model replies, simulator states, request ledgers, and pinned Retail evaluator. The repository provides aggregate table values in [results](results).
 
 ```sh
-python -B bar_fsm.py reproduce --archive downloads/BAR-FSM-reproduction-v5.2.zip --out outputs/paper
+python -B bar_fsm.py reproduce --archive downloads/BAR-FSM-reproduction-v5.7.zip --out outputs/paper
 ```
 
-The command verifies the archive and release source hashes, replays the study offline, and compares 14 regenerated tables and audit outputs with the archived references. Start with an empty output directory. Figure rendering may vary with platform and fonts.
+The command verifies the archive and release source hashes, replays the study offline (including the 686-candidate audit, 15/15 restart-restoration counterfactual, resource-margin plots, and aggregate/max capacity comparators), and compares 18 regenerated tables and audit outputs with the archived references. Start with an empty output directory. Figure rendering may vary with platform and fonts.
 
 ## Code
 
@@ -33,8 +33,11 @@ The command verifies the archive and release source hashes, replays the study of
 - [runtime/src/aroute/envs](runtime/src/aroute/envs) contains the sandbox tool implementations.
 - [audit_oracle_v50.py](audit_oracle_v50.py) verifies reachability using native witnesses and finite-state search.
 - [audit_qualification_stages.py](audit_qualification_stages.py) separates holds at the local gate from unresolved resource checks.
-- [reproduce_paper.py](reproduce_paper.py) regenerates the analyses, tables, and figures that support the manuscript.
-- [results](results) contains aggregate values for the main workflow and family-level contrasts.
+- [audit_resource_margins.py](audit_resource_margins.py) computes invoice-count and capacity margins (Fig. 4) and paired evidence transitions.
+- [audit_submission_evidence.py](audit_submission_evidence.py) runs the 686-candidate sweep, 15/15 restart-restoration check, message-version parity, and aggregate/max capacity comparators.
+- [audit_experimental_results.py](audit_experimental_results.py) aggregates experimental tables and sensitivity summaries.
+- [reproduce_paper.py](reproduce_paper.py) regenerates the analyses, tables, and figures that support the manuscript (including `plot_method_overview.py`).
+- [results](results) contains aggregate values for the main workflow, 686-candidate audit, accounting baselines, and family-level contrasts.
 
 The runtime files retain the bytes recorded in the experiment protocols. The public entry point and the audit scripts use those files to run synthetic fixtures and replay sandbox traces.
 

@@ -55,7 +55,6 @@ def search(start, successors, goal, max_states=None):
     parents = {start: None}
     examined = 0
     while pending:
-        # A cutoff with states left to visit cannot establish unreachability.
         if max_states is not None and examined >= max_states:
             return {"verdict": "unknown", "termination": "computation_limit",
                     "expanded_states": examined, "pending_states": len(pending)}
@@ -214,7 +213,6 @@ def service_verdict(env, task, contract, retain_witness=False):
     if optimistic["verdict"] == "unreachable":
         return {"reachable": False, "exhaustion": optimistic}
 
-    # The relaxed search can rule out a goal. A positive verdict needs a native run.
     snapshot = env.snapshot_state()["services"]
     wanted = task["goal"]["running_revisions"]
     path = []
@@ -276,7 +274,6 @@ def account_search(context, allow_post_before_void, max_states=None):
 
     def successors(state):
         needs, quotas, headroom, live = state
-        # Voiding a duplicate changes the residual without spending a posting allowance.
         waiting = set()
         for bit, (entry, i, amount) in enumerate(duplicates):
             if live & (1 << bit):
@@ -285,7 +282,6 @@ def account_search(context, allow_post_before_void, max_states=None):
                 yield ((revised, quotas, headroom - amount, live ^ (1 << bit)),
                        action("void_duplicate_entry", entry_id=entry))
         for i, need in enumerate(needs):
-            # Multiple invoices can debit the same ticket.
             pool = owners[i]
             if (not allow_post_before_void and i in waiting) or quotas[pool] <= 0:
                 continue
@@ -412,7 +408,6 @@ def natural_accounting_checks():
                     assert candidate["name"] == "post_adjustment" and event["guard"]["local"] == "pass"
                     assert authorized_post(account_context(env, task), candidate)
                     predecessor = account_verdict(env, task)
-                    # The candidate branch must leave the recorded episode's state intact.
                     with closing(env_for(task)) as fork:
                         env.conn.backup(fork.conn)
                         execute(fork, candidate)

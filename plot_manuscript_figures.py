@@ -10,6 +10,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
+from audit_experimental_results import qualification as audit_qualification
 
 
 ROOT = Path(__file__).resolve().parent
@@ -62,27 +63,33 @@ def configure_style():
                          "ytick.major.size": 0, "svg.fonttype": "none", "pdf.fonttype": 42})
 
 
-def case_classification(data):
-    c, r = data["classification"], data["resolution"]
-    fig, ax = plt.subplots(figsize=(WIDTH, 2.42))
-    fig.subplots_adjust(left=0.27, right=0.97, bottom=0.25, top=0.95)
-    rows = [
-        ("Locally inadmissible", c["oracle_ineligible"], 0, ""),
-        ("Already unreachable", c["initially_unreachable"], 0, ""),
-        ("New loss of reachability", r["certified_new_losses"], r["unresolved_new_losses"], "certified"),
-        ("Preserves reachability", r["explicit_preserving_passes"], r["unresolved_preserving"], "passed"),
-    ]
-    for idx, (label, main, unknown, suffix) in enumerate(rows):
-        ax.barh(idx, main, height=0.51, color=NEUTRAL if idx < 2 else TEAL)
-        if unknown:
-            ax.barh(idx, unknown, left=main, height=0.51, color=PALE, edgecolor=NEUTRAL, linewidth=0.7)
-        text = f"{main} {suffix} · {unknown} unresolved" if unknown else str(main)
-        ax.annotate(text, xy=(main + unknown, idx), xytext=(6, 0), textcoords="offset points", va="center")
-    ax.set_yticks(range(4), labels=[row[0] for row in rows])
-    ax.set_ylim(3.53, -0.53)
-    ax.set_xlim(0, 445)
-    ax.set_xticks([0, 100, 200, 300, 400])
-    ax.set_xlabel("Constructed state–action pairs")
+def case_classification(data, qualification):
+    c = data["classification"]
+    fig, (left, right) = plt.subplots(1, 2, figsize=(WIDTH, 2.12))
+    fig.subplots_adjust(left=0.21, right=0.97, bottom=0.25, top=0.73, wspace=0.56)
+    panel_heading(left, "a", "Backend classification")
+    panel_heading(right, "b", "Effect of authoritative receipts")
+    labels = ("Locally inadmissible", "Already unreachable", "New loss", "Preserving")
+    counts = (c["oracle_ineligible"], c["initially_unreachable"],
+              c["new_loss"], c["preserving"])
+    left.barh(range(4), counts, color=(NEUTRAL, NEUTRAL, TEAL, TEAL), height=0.56)
+    for y, count in enumerate(counts):
+        left.annotate(str(count), (count, y), (4, 0), textcoords="offset points", va="center")
+    left.set(yticks=range(4), yticklabels=labels, ylim=(3.62, -0.62),
+             xlim=(0, 428), xticks=(0, 100, 200, 300, 400), xlabel="State–action pairs")
+
+    transitions = qualification["same_logic_receipt_transitions"]
+    eligible = (transitions["new_loss"], transitions["preserved"])
+    dispositions = ("certificate_hold", "no_certified_deficit", "resource_unresolved")
+    changes = [sum(row.get(f"resource_unresolved -> {d}", 0) for row in eligible)
+               for d in dispositions]
+    outcomes = ("Certified deficit", "No certified deficit", "Still unresolved")
+    right.barh(range(3), changes, color=(TEAL, "#A4D3D4", PALE), height=.49,
+               edgecolor=(TEAL, "#A4D3D4", NEUTRAL), linewidth=.7)
+    for y, count in enumerate(changes):
+        right.annotate(str(count), (count, y), (4, 0), textcoords="offset points", va="center")
+    right.set(yticks=range(3), yticklabels=outcomes, ylim=(2.55, -.55),
+              xlim=(0, 40), xticks=(0, 10, 20, 30, 40), xlabel="Previously unresolved candidates")
     return fig
 
 
@@ -195,7 +202,9 @@ def main():
     configure_style()
     data = collect_data(args.audit_dir)
     (args.out / "figure_data.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    save_figure(case_classification(data["classification"]), args.out / "fig1_classification", args.alignment_tool)
+    qualification = audit_qualification(load(args.audit_dir / "voidability_720.json"))
+    save_figure(case_classification(data["classification"], qualification),
+                args.out / "fig1_classification", args.alignment_tool)
     save_figure(formal_study(data["formal"]), args.out / "fig2_formal_study", args.alignment_tool)
     save_figure(accounting_study(data["accounting"]), args.out / "fig3_accounting", args.alignment_tool)
 
